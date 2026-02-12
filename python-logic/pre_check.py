@@ -98,12 +98,34 @@ def run_ghost_scanner():
     
     console.print(Panel(grid, title="Unit Economics (Per Batch)"))
     
+    # --- ADR-035: Market Calibration (Direct vs Secondary) ---
+    market_direct_usd = 5.00
+    market_secondary_eth = 0.005
+    eth_price_usd = 1920.00 # Feb 2026 Est? Or just use $9.60 from ADR context.
+    market_secondary_usd = 9.60 # As per ADR-035
+    
+    calib_grid = Table.grid(expand=True)
+    calib_grid.add_column(justify="left")
+    calib_grid.add_column(justify="right")
+    
+    calib_grid.add_row("Direct Recruitment:", f"[green]${market_direct_usd:.2f}[/green] (Adalia Prime)")
+    calib_grid.add_row("Secondary Market (Floor):", f"[red]${market_secondary_usd:.2f}[/red] (~{market_secondary_eth} ETH)")
+    
+    console.print(Panel(calib_grid, title="Market Entry Calibration"))
+    
+    calibration_pass = market_direct_usd < market_secondary_usd
+    
+    # ---------------------------------------------------------
+
     console.print(f"\n⛽ [bold]Network Status:[/bold] Gas: {gas_gwei:.2f} Gwei | Block: {block}")
     
-    if gross_profit > 150.0: # Arbitrary buffer for Gas
-        console.print(Panel("[bold green]✅ GO SIGNAL: Profitable Entry[/bold green]\nRecruit your Crewmate. The loop is viable.", style="green"))
+    if gross_profit > 150.0 and calibration_pass: 
+        console.print(Panel("[bold green]✅ READY FOR RECRUITMENT[/bold green]\n"
+                            "1. Profit Margin confirmed (> 150 SWAY).\n"
+                            "2. Direct Recruit is cheaper than Secondary Market.", style="green"))
     else:
-         console.print(Panel("[bold red]⛔ NO-GO SIGNAL: Margins too thin[/bold red]\nWait for spreads to widen.", style="red"))
+         console.print(Panel("[bold red]⛔ NO-GO SIGNAL[/bold red]\nEither margins thin OR Secondary market cheaper.", style="red"))
+
 
 if __name__ == "__main__":
     run_ghost_scanner()
