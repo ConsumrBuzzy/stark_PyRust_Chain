@@ -6,10 +6,12 @@ mod vault;
 mod starknet_client;
 mod supply_chain;
 mod rate_limiter;
+mod influence_api;
 
 use vault::Vault;
 use starknet_client::StarknetClient;
 use supply_chain::{SupplyChainGraph, Recipe};
+use influence_api::{InfluenceClient, Asteroid};
 use std::collections::HashMap;
 
 // --- PyO3 Wrappers ---
@@ -46,7 +48,6 @@ struct PyStarknetClient {
 impl PyStarknetClient {
     #[new]
     fn new(rpc_url: Option<String>) -> PyResult<Self> {
-        // Pass Option<&str> to inner
         let url_slice = rpc_url.as_deref();
         let client = StarknetClient::new(url_slice).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         let rt = Runtime::new().unwrap();
@@ -89,11 +90,39 @@ impl PySupplyChain {
     }
 }
 
-/// The main module exposed to Python
+#[pyclass]
+struct PyInfluenceClient {
+    inner: Arc<InfluenceClient>,
+    rt: Runtime,
+}
+
+#[pymethods]
+impl PyInfluenceClient {
+    #[new]
+    fn new() -> PyResult<Self> {
+        let client = InfluenceClient::new().map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        let rt = Runtime::new().unwrap();
+        Ok(PyInfluenceClient {
+            inner: Arc::new(client),
+            rt,
+        })
+    }
+    
+    fn get_asteroid(&self, asteroid_id: u64) -> PyResult<String> {
+         // Returning JSON string for simplicity in Python for now
+         self.rt.block_on(async {
+             let asteroid = self.inner.get_asteroid(asteroid_id).await
+                 .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+             serde_json::to_string(&asteroid).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
+         })
+    }
+}
+
 #[pymodule]
 fn stark_pyrust_chain(_py: Python, m: &PyModule) -> PyResult<()> {
     m.add_class::<PyVault>()?;
     m.add_class::<PyStarknetClient>()?;
     m.add_class::<PySupplyChain>()?;
+    m.add_class::<PyInfluenceClient>()?;
     Ok(())
 }
