@@ -13,7 +13,7 @@ impl StarknetClient {
     /// Create a new StarknetClient. 
     /// If `rpc_url` is provided, it uses that.
     /// Otherwise, it attempts to find a compatible URL in the environment (PhantomArbiter style).
-    pub fn new(rpc_url: Option<str>) -> Result<Self> {
+    pub fn new(rpc_url: Option<&str>) -> Result<Self> {
         // Load .env if not already loaded (safe to call multiple times)
         dotenv::dotenv().ok();
 
