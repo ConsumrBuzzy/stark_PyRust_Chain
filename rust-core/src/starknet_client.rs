@@ -34,6 +34,7 @@ impl StarknetClient {
     fn detect_rpc_url() -> Result<String> {
         let keys = [
             "STARKNET_RPC_URL",
+            "STARKNET_MAINNET_URL",
             "ALCHEMY_RPC_URL",
             "INFURA_RPC_URL",
             "QUICKNODE_ENDPOINT",
