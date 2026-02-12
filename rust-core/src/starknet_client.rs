@@ -63,8 +63,12 @@ impl StarknetClient {
         let mut urls = Vec::new();
         for key in keys {
             if let Ok(val) = env::var(key) {
-                if !val.trim().is_empty() {
-                    urls.push(val.trim().to_string());
+                let trimmed = val.trim();
+                if !trimmed.is_empty() {
+                    // Validate URL format before adding
+                    if Url::parse(trimmed).is_ok() {
+                        urls.push(trimmed.to_string());
+                    }
                 }
             }
         }
