@@ -145,5 +145,45 @@ def start(strategy: str = "refine", dry_run: bool = True):
             live.update(dash.render(block, gas_gwei, eth_balance))
             time.sleep(1)
 
+@app.command()
+def pulse(strategy: str = "refine", dry_run: bool = True):
+    """
+    Execute a single Strategy Tick (Pulse Mode).
+    Suitable for Cron Jobs / GitHub Actions.
+    """
+    if not RUST_AVAILABLE:
+        console.print("[bold red]Rust extension missing.[/bold red]")
+        return
+    
+    # Initialize Strategy
+    active_strategy = None
+    if strategy == "refine":
+        active_strategy = RefiningStrategy(dry_run=dry_run)
+        
+        # Simple logging for Pulse (Stdout)
+        def pulse_log(msg):
+            print(f"[PULSE] {msg}")
+
+        active_strategy.log = pulse_log
+    else:
+        print(f"Unknown strategy: {strategy}")
+        return
+
+    print(f"--- PULSE STARTED: Strategy={strategy.upper()} | DryRun={dry_run} ---")
+    
+    # 1. Update Network Status (Log only)
+    try:
+        block, gas_wei = active_strategy.starknet.get_network_status()
+        gas_gwei = gas_wei / 1e9
+        print(f"Network Status: Block={block} | Gas={gas_gwei:.2f} Gwei")
+    except Exception as e:
+        print(f"Network Status Error: {e}")
+
+    # 2. Run Single Tick
+    active_strategy.tick()
+    
+    print("--- PULSE COMPLETE ---")
+
+
 if __name__ == "__main__":
     app()

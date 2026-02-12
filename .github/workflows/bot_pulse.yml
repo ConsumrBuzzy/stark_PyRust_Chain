@@ -1,0 +1,43 @@
+name: stark_PyRust_Chain Pulse
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Build Rust Extension
+        run: |
+          # Install maturin
+          pip install maturin
+          # Build in releaes mode (using build_rust.py wrapper or direct maturin)
+          # Wrapper might fail on Linux if paths differ? direct maturin is safer for CI.
+          # actually build_rust.py is simple wrapper. Let's try it.
+          python build_rust.py
+          
+      - name: Run Pulse
+        env:
+          STARKNET_RPC_URL: ${{ secrets.STARKNET_RPC_URL }}
+          STARKNET_WALLET_ADDRESS: ${{ secrets.STARKNET_WALLET_ADDRESS }}
+          STARKNET_PRIVATE_KEY: ${{ secrets.STARKNET_PRIVATE_KEY }}
+          # INFLUENCE_API_KEY: ${{ secrets.INFLUENCE_API_KEY }}
+        run: |
+          python python-logic/orchestrator.py pulse --dry-run
