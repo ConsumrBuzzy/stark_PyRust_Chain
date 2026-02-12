@@ -1,8 +1,9 @@
-name: stark_PyRust_Chain Pulse
+name: Starknet Pulse (Jitter)
 
 on:
   schedule:
-    - cron: '*/30 * * * *'
+    # "Jitter" Schedule: Run at random minutes (27 and 57) to avoid top-of-hour congestion
+    - cron: '27,57 * * * *'
   workflow_dispatch:
 
 jobs:

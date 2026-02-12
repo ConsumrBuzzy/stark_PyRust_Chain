@@ -20,6 +20,28 @@
     -   `Dashboard`: "The Decade Device" TUI.
     -   `Onramp`: Coinbase -> Starknet Bridge.
 
+## Technical Methodology
+
+### A. The "Ghost Scanner" Protocol (ADR-031)
+The bot proves profitability *before* signing any transaction.
+1.  **Market Scan**: Fetches real-time order book depths for Inputs (Iron/Propellant) and Outputs (Steel).
+2.  **Spread Analysis**: Calculates `Net Spread = Revenue - (Material + Lease + Gas)`.
+3.  **Threshold Enforcement**: Transactions are rejected if `Projected ROI < 150 SWAY`.
+4.  **Result**: Zero capital wasted on unprofitable trades.
+
+### B. Life Support & Logistics (ADR-041/043)
+We address the "Silent Killers" of the Influence economy:
+-   **Food Security**: Rations are checked before every Pulse. If `Food < 550kg`, the bot triggers a warning/restock to avoid the **75% speed penalty**.
+-   **Biometrics**: The Rust Core checks the crew's `Busy` state. If active, the Pulse exits gracefully ("Soft Exit") to prevent **Gas Reverts**.
+-   **Logistics Tax**: The bot calculates distance between Warehouse and Refinery.
+    -   *Formula*: `Profit = Spread - (Distance * 15 SWAY)`.
+-   **Class Affinity**: Enforces "Engineer" class to guarantee 100% efficiency.
+
+### C. The "Sealed" Vault Protocol
+-   **Local**: Keys are encrypted with AES-256 (`vault.bin`) and never stored in plaintext.
+-   **Cloud (GitHub)**: The `vault.bin` is **EXCLUDED** from the repository. Automation relies purely on ephemeral `GitHub Secrets` injected at runtime.
+-   **Result**: complete separation of Development (Local) and Operations (Cloud) credentials.
+
 ## Validated Guardrails (ADRs)
 | ADR | Feature | Guardrail Implemented |
 | :--- | :--- | :--- |
