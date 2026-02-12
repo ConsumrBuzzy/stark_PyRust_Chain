@@ -5,6 +5,7 @@ use tokio::runtime::Runtime;
 mod vault;
 mod starknet_client;
 mod supply_chain;
+mod rate_limiter;
 
 use vault::Vault;
 use starknet_client::StarknetClient;
@@ -44,8 +45,10 @@ struct PyStarknetClient {
 #[pymethods]
 impl PyStarknetClient {
     #[new]
-    fn new(rpc_url: &str) -> PyResult<Self> {
-        let client = StarknetClient::new(rpc_url).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+    fn new(rpc_url: Option<String>) -> PyResult<Self> {
+        // Pass Option<&str> to inner
+        let url_slice = rpc_url.as_deref();
+        let client = StarknetClient::new(url_slice).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         let rt = Runtime::new().unwrap();
         Ok(PyStarknetClient { 
             inner: Arc::new(client),
