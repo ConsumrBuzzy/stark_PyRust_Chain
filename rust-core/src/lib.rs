@@ -64,6 +64,13 @@ impl PyStarknetClient {
             self.inner.get_block_number().await
         }).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
     }
+
+    fn batch_query(&self, account: &str, asteroids: Vec<u64>) -> PyResult<String> {
+        self.rt.block_on(async {
+            self.inner.batch_query(account, &asteroids).await
+                .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+        })
+    }
 }
 
 #[pyclass]
@@ -83,12 +90,18 @@ impl PySupplyChain {
             inputs,
             outputs,
             process_time_seconds: time,
+            energy_cost_kw: 0, // Default for manual add via Python for now
         };
         self.inner.add_recipe(&name, recipe);
     }
     
     fn find_sources(&self, resource: String) -> Option<Vec<String>> {
         self.inner.find_production_path(&resource)
+    }
+
+    fn calculate_profitability(&self, recipe_name: String, market_prices: HashMap<String, f64>) -> PyResult<f64> {
+        self.inner.calculate_profitability(&recipe_name, &market_prices)
+             .map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))
     }
 }
 
@@ -127,7 +140,7 @@ struct PySessionKey {
 #[pymethods]
 impl PySessionKey {
     #[new]
-    fn generate() -> PyResult<Self> {
+    fn new() -> PyResult<Self> {
         let key = SessionKey::generate().map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
         Ok(PySessionKey { inner: key })
     }
