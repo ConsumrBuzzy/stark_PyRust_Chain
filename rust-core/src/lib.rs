@@ -155,6 +155,12 @@ impl PyInfluenceClient {
                 .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
         })
     }
+
+    fn get_crew_metadata(&self, crew_id: u64) -> PyResult<(bool, u64, u32, u64, u8)> {
+        self.rt.block_on(async {
+            self.inner.get_crew_metadata(crew_id).await
+        }).map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))
+    }
 }
 
 #[pyclass]

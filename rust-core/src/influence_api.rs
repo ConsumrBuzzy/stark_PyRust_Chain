@@ -84,5 +84,14 @@ impl InfluenceClient {
         Ok(prices)
     }
 
+    /// Fetch Crew Metadata (ADR-041)
+    /// Returns: (is_busy, busy_until_ts, food_kg, location_lot, class_id)
+    /// Currently MOCKED for Phase 4. Needs SAGE integration.
+    /// Class ID 1 = Engineer.
+    pub async fn get_crew_metadata(&self, _crew_id: u64) -> Result<(bool, u64, u32, u64, u8)> {
+        // Mock: Active, 0 timer, 750kg Food, Lot 42, Class 1 (Engineer)
+        Ok((false, 0, 750, 42, 1))
+    }
+
     // Add other methods: get_inventory, etc.
 }

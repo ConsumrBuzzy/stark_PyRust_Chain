@@ -38,6 +38,7 @@ class RefiningStrategy(BaseStrategy):
         import os
         rpc_url = os.getenv("STARKNET_MAINNET_URL") or os.getenv("STARKNET_RPC_URL")
         self.starknet = stark_pyrust_chain.PyStarknetClient(rpc_url)
+        self.influence = stark_pyrust_chain.PyInfluenceClient() # New for ADR-041
         
         # Load or generate Session Key (In real app, load from Vault)
         # For v0.1.0 demo, we generate a fresh one or assume it's loaded
@@ -57,14 +58,40 @@ class RefiningStrategy(BaseStrategy):
             block, gas_wei = self.starknet.get_network_status()
             gas_gwei = gas_wei / 1e9
             
-            self.log(f"🔎 Scanning Adalia Markets... [Block: {block} | Gas: {gas_gwei:.2f} Gwei]")
+            # --- ADR-041/043: Life Support & Class Affinity ---
+            # Mock Crew ID: 1
+            # Returns: (is_busy, busy_until, food_kg, location, class_id)
+            is_busy, busy_until, food_kg, location, class_id = self.influence.get_crew_metadata(1)
+            
+            status_color = "red" if is_busy else "green"
+            food_color = "green" if food_kg > 550 else "red"
+            class_name = "Engineer" if class_id == 1 else f"Unknown ({class_id})"
+            class_color = "green" if class_id == 1 else "yellow"
+
+            self.log(f"🔎 Scanning Adalia... [Block: {block} | Gas: {gas_gwei:.2f}] [Status: [{status_color}]{'BUSY' if is_busy else 'ACTIVE'}[/{status_color}]]")
+            self.log(f"   Health: [Food: [{food_color}]{food_kg}kg[/{food_color}] | Class: [{class_color}]{class_name}[/{class_color}]]")
+            
+            if is_busy:
+                self.log("[bold yellow]Crew Busy - Standing Down.[/bold yellow]")
+                return
+
+            if food_kg < 550:
+                 self.log("[bold red]Crew Hungry (<550kg). Triggering Restock Protocol (Manual).[/bold red]")
+                 return
+
+            if class_id != 1:
+                self.log("[yellow]⚠️  Efficiency Warning: Crew is not an Engineer. -50% Speed penalty active.[/yellow]")
+            
+            # --- ADR-043: Propellant Lock ---
+            # Logic: Ensure Fuel is bought BEFORE Iron.
+            # (Implemented in order execution flow - Placeholder for Phase 5)
             
             if gas_gwei > 30.0:
                 self.log(f"[bold red]⛔ High Gas Detected ({gas_gwei:.2f} > 30.0). Yielding...[/bold red]")
                 return
-
         except Exception as e:
-            self.log(f"⚠️ Failed to fetch network status: {e}")
+            self.log(f"⚠️ Failed to fetch status: {e}")
+            return # Exit if network/status fails
 
         # --- Market Logic ---
         # 1. Fetch Market Prices (Mocked for now as we don't have full Market API yet)
