@@ -3,69 +3,101 @@ use url::Url;
 use anyhow::{Context, Result};
 use crate::rate_limiter::ApiRateLimiter;
 use std::env;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub struct StarknetClient {
-    provider: JsonRpcClient<HttpTransport>,
+    providers: Vec<JsonRpcClient<HttpTransport>>,
+    current_index: AtomicUsize,
     limiter: ApiRateLimiter,
 }
 
 impl StarknetClient {
     /// Create a new StarknetClient. 
-    /// If `rpc_url` is provided, it uses that.
-    /// Otherwise, it attempts to find a compatible URL in the environment (PhantomArbiter style).
+    /// If `rpc_url` is provided, it uses ONLY that one.
+    /// Otherwise, it detects ALL compatible URLs in the environment and rotates between them.
     pub fn new(rpc_url: Option<&str>) -> Result<Self> {
-        // Load .env if not already loaded (safe to call multiple times)
+        // Load .env if not already loaded
         dotenv::dotenv().ok();
 
-        let url_str = match rpc_url {
-            Some(u) => u.to_string(),
-            None => Self::detect_rpc_url()?,
-        };
+        let mut url_strings = Vec::new();
 
-        let url = Url::parse(&url_str).context("Invalid RPC URL")?;
-        let provider = JsonRpcClient::new(HttpTransport::new(url));
-        
+        if let Some(u) = rpc_url {
+            url_strings.push(u.to_string());
+        } else {
+            url_strings = Self::detect_rpc_urls()?;
+        }
+
+        let mut providers = Vec::new();
+        for url_str in url_strings {
+            let url = Url::parse(&url_str).context(format!("Invalid RPC URL: {}", url_str))?;
+            providers.push(JsonRpcClient::new(HttpTransport::new(url)));
+        }
+
+        if providers.is_empty() {
+             return Err(anyhow::anyhow!("No valid RPC providers available."));
+        }
+
         // Default to safe limit: 5 requests per second (typical free tier)
+        // Note: This limit is global for the client struct, effectively limiting total throughput 
+        // regardless of which provider is used next.
         let limiter = ApiRateLimiter::new(5)?;
 
-        Ok(StarknetClient { provider, limiter })
+        Ok(StarknetClient { 
+            providers, 
+            current_index: AtomicUsize::new(0),
+            limiter 
+        })
     }
 
-    fn detect_rpc_url() -> Result<String> {
+    fn detect_rpc_urls() -> Result<Vec<String>> {
         let keys = [
             "STARKNET_RPC_URL",
             "STARKNET_MAINNET_URL",
+            "STARKNET_LAVA_URL",
+            "STARKNET_1RPC_URL",
             "ALCHEMY_RPC_URL",
             "INFURA_RPC_URL",
             "QUICKNODE_ENDPOINT",
         ];
 
+        let mut urls = Vec::new();
         for key in keys {
             if let Ok(val) = env::var(key) {
-                if !val.is_empty() {
-                    return Ok(val);
+                if !val.trim().is_empty() {
+                    urls.push(val.trim().to_string());
                 }
             }
         }
         
-        Err(anyhow::anyhow!("No valid RPC URL found in environment variables."))
+        if urls.is_empty() {
+            Err(anyhow::anyhow!("No valid RPC URL found in environment variables."))
+        } else {
+            Ok(urls)
+        }
+    }
+
+    fn next_provider(&self) -> &JsonRpcClient<HttpTransport> {
+        let idx = self.current_index.fetch_add(1, Ordering::Relaxed);
+        &self.providers[idx % self.providers.len()]
     }
 
     pub async fn get_block_number(&self) -> Result<u64> {
         self.limiter.check().await;
-        let block_number = self.provider.block_number().await
+        // Use next provider in round-robin logic
+        let provider = self.next_provider();
+        
+        let block_number = provider.block_number().await
             .map_err(|e| anyhow::anyhow!("Failed to fetch block number: {}", e))?;
         Ok(block_number)
     }
 
     /// Execute a batched query (Multicall).
-    /// Used to fetch Account Balance AND Influence State in one go.
-    /// This is the "L2 Latency Killer".
     pub async fn batch_query(&self, _account_address: &str, _asteroids: &[u64]) -> Result<String> {
         self.limiter.check().await;
+        let _provider = self.next_provider();
+        
         // logic to construct a Multicall transaction or multiple async queries
-        // For v0.1.0, we will simulate this by running parallel queries (tokio::join!)
-        // In v0.2.0, this becomes a true Starknet Multicall Contract read.
+        // For v0.1.0, we will simulate this.
         
         Ok("{\"balance\": \"1000 SWAY\", \"asteroids\": []}".to_string())
     }
