@@ -1,0 +1,24 @@
+[build-system]
+requires = ["maturin>=1.4,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "stark_pyrust_chain"
+version = "0.1.0"
+description = "Hybrid Rust/Python architecture for Starknet/Influence automation"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+    "typer",
+    "rich",
+    "pydantic",
+]
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "stark_pyrust_chain"
+manifest-path = "rust-core/Cargo.toml"
